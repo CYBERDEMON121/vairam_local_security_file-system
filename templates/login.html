@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - SecureCloud</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+        .login-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            animation: fadeInUp 0.5s ease;
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .login-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .login-body {
+            padding: 40px;
+        }
+        .form-control {
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .btn-login {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            width: 100%;
+            font-weight: bold;
+            transition: transform 0.3s;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            color: white;
+        }
+        .biometric-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .btn-biometric {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            background: white;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .btn-biometric:hover {
+            background: #f8f9fa;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .btn-biometric i {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        .video-feed {
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+            position: relative;
+        }
+        #faceVideo {
+            width: 100%;
+            transform: scaleX(-1);
+        }
+        .modal-content {
+            border-radius: 15px;
+        }
+        .btn-capture {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            margin-top: 15px;
+            transition: transform 0.3s;
+        }
+        .btn-capture:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        .btn-capture:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .fingerprint-animation {
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .face-guide {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .face-guide::before {
+            content: "Position face here";
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 12px;
+            white-space: nowrap;
+            background: rgba(0,0,0,0.6);
+            padding: 4px 8px;
+            border-radius: 20px;
+        }
+        .confidence-bar {
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        .status-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 10;
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            border-radius: 10px;
+        }
+        .loading-spinner {
+            color: white;
+            text-align: center;
+        }
+        .loading-spinner i {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="login-card">
+                    <div class="login-header">
+                        <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
+                        <h2>Welcome Back</h2>
+                        <p class="mb-0">Login to your SecureCloud account</p>
+                    </div>
+                    <div class="login-body">
+                        {% with messages = get_flashed_messages(with_categories=true) %}
+                            {% if messages %}
+                                {% for category, message in messages %}
+                                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                                        {{ message }}
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+
+                        <!-- Password Login Form -->
+                        <form method="POST" action="/login" id="loginForm">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Username</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                    <input type="text" class="form-control" id="username" name="username" required
+                                           placeholder="Enter your username" autocomplete="username">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <input type="password" class="form-control" id="password" name="password" required
+                                           placeholder="Enter your password" autocomplete="current-password">
+                                    <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-login">
+                                <i class="fas fa-sign-in-alt me-2"></i>Login with Password
+                            </button>
+                        </form>
+
+                        <div class="text-center my-3">
+                            <span class="text-muted">Or login with</span>
+                        </div>
+
+                        <!-- Biometric Authentication Buttons -->
+                        <div class="biometric-buttons">
+                            <button class="btn-biometric" onclick="showFaceAuth()" id="faceIdBtn">
+                                <i class="fas fa-face-smile"></i>
+                                <div>Face ID</div>
+                                <small class="text-muted">Face Recognition</small>
+                            </button>
+                            <button class="btn-biometric" onclick="showFingerprintAuth()" id="fingerprintBtn">
+                                <i class="fas fa-fingerprint"></i>
+                                <div>Fingerprint</div>
+                                <small class="text-muted">Biometric Login</small>
+                            </button>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="text-center">
+                            <p class="mb-0">Don't have an account? <a href="/register" class="text-decoration-none">Register here</a></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Face Authentication Modal -->
+    <div class="modal fade" id="faceAuthModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-face-smile text-primary"></i> Face Authentication
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopFaceCamera()"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="faceAuthArea">
+                        <div class="video-feed mb-3" style="position: relative;">
+                            <video id="faceVideo" autoplay playsinline></video>
+                            <div class="face-guide"></div>
+                            <div class="status-badge" id="faceStatus">
+                                <i class="fas fa-video"></i> Initializing...
+                            </div>
+                            <div id="faceLoadingOverlay" class="loading-overlay" style="display: none;">
+                                <div class="loading-spinner">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <div>Processing face...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <button class="btn btn-capture" id="captureBtn" onclick="captureAndVerifyFace()" disabled>
+                                <i class="fas fa-camera"></i> Capture & Verify Face
+                            </button>
+                            <p class="text-muted mt-2 small">
+                                <i class="fas fa-info-circle"></i> Look directly at camera and ensure good lighting
+                            </p>
+                        </div>
+
+                        <div id="faceResult" style="display: none;" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fingerprint Authentication Modal -->
+    <div class="modal fade" id="fingerprintModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-fingerprint text-primary"></i> Fingerprint Authentication
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="fingerprint-animation">
+                        <i class="fas fa-fingerprint" style="font-size: 80px; color: #667eea;"></i>
+                    </div>
+                    <p class="mt-3">Please place your finger on the fingerprint scanner</p>
+                    <div class="progress mt-3" style="display: none;" id="fingerprintProgress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%">Verifying...</div>
+                    </div>
+                    <div id="fingerprintResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let faceStream = null;
+        let faceVideo = null;
+        let isFaceDetected = false;
+
+        // Password visibility toggle
+        const togglePassword = document.querySelector('#togglePassword');
+        const password = document.querySelector('#password');
+
+        if (togglePassword) {
+            togglePassword.addEventListener('click', function() {
+                const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+                password.setAttribute('type', type);
+                this.querySelector('i').classList.toggle('fa-eye');
+                this.querySelector('i').classList.toggle('fa-eye-slash');
+            });
+        }
+
+        // Check if user has face enrolled
+        async function checkFaceEnrolled(username) {
+            try {
+                const response = await fetch(`/check-face-enrolled?username=${encodeURIComponent(username)}`);
+                const data = await response.json();
+                return data.enrolled || false;
+            } catch (error) {
+                console.error('Error checking face enrollment:', error);
+                return false;
+            }
+        }
+
+        // Face authentication
+        async function showFaceAuth() {
+            const username = document.getElementById('username').value;
+            if (!username) {
+                alert('Please enter your username first');
+                return;
+            }
+
+            // Check if face is enrolled
+            const faceEnrolled = await checkFaceEnrolled(username);
+            if (!faceEnrolled) {
+                alert('Face recognition not set up for this account. Please login with password and setup face recognition in security settings.');
+                return;
+            }
+
+            const modal = new bootstrap.Modal(document.getElementById('faceAuthModal'));
+            modal.show();
+
+            // Start camera
+            await initFaceCamera();
+        }
+
+        async function initFaceCamera() {
+            faceVideo = document.getElementById('faceVideo');
+            const statusBadge = document.getElementById('faceStatus');
+            const captureBtn = document.getElementById('captureBtn');
+
+            try {
+                statusBadge.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Requesting camera...';
+
+                faceStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: "user"
+                    }
+                });
+
+                if (faceVideo) {
+                    faceVideo.srcObject = faceStream;
+                    faceVideo.onloadedmetadata = () => {
+                        faceVideo.play();
+                        statusBadge.innerHTML = '<i class="fas fa-check-circle"></i> Camera ready';
+                        captureBtn.disabled = false;
+                    };
+                }
+            } catch (err) {
+                console.error('Camera error:', err);
+                statusBadge.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Camera error';
+                let errorMsg = 'Unable to access camera';
+                if (err.name === 'NotAllowedError') errorMsg = 'Camera permission denied. Please grant camera access.';
+                if (err.name === 'NotFoundError') errorMsg = 'No camera found on this device.';
+                alert(errorMsg);
+                bootstrap.Modal.getInstance(document.getElementById('faceAuthModal')).hide();
+            }
+        }
+
+        async function captureAndVerifyFace() {
+            if (!faceVideo || !faceStream) {
+                alert('Camera not ready. Please try again.');
+                return;
+            }
+
+            const username = document.getElementById('username').value;
+            if (!username) {
+                alert('Please enter your username first');
+                bootstrap.Modal.getInstance(document.getElementById('faceAuthModal')).hide();
+                return;
+            }
+
+            const loadingOverlay = document.getElementById('faceLoadingOverlay');
+            const captureBtn = document.getElementById('captureBtn');
+            const resultDiv = document.getElementById('faceResult');
+
+            loadingOverlay.style.display = 'flex';
+            captureBtn.disabled = true;
+
+            // Wait a bit for camera to stabilize
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            const canvas = document.createElement('canvas');
+            canvas.width = faceVideo.videoWidth;
+            canvas.height = faceVideo.videoHeight;
+            const context = canvas.getContext('2d');
+
+            // Draw video frame (flipped for mirror effect)
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+            context.drawImage(faceVideo, 0, 0, canvas.width, canvas.height);
+            context.setTransform(1, 0, 0, 1, 0, 0);
+
+            // Show loading message
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Verifying face... Please wait.</div>';
+
+            // Convert canvas to blob and send to server
+            canvas.toBlob(async function(blob) {
+                const formData = new FormData();
+                formData.append('face_image', blob, 'face.jpg');
+                formData.append('username', username);
+
+                try {
+                    const response = await fetch('/verify-face', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+                    loadingOverlay.style.display = 'none';
+
+                    if (data.success && data.verified) {
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i>
+                                <strong>Face Verified!</strong><br>
+                                Confidence: ${Math.round(data.confidence * 100)}%
+                                <div class="confidence-bar mt-2">
+                                    <div class="confidence-fill" style="width: ${data.confidence * 100}%"></div>
+                                </div>
+                                <br>Redirecting to dashboard...
+                            </div>
+                        `;
+                        setTimeout(() => {
+                            window.location.href = '/dashboard';
+                        }, 1500);
+                    } else {
+                        let errorMsg = data.message || 'Face verification failed';
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="fas fa-times-circle"></i>
+                                <strong>Verification Failed</strong><br>
+                                ${errorMsg}
+                                ${data.confidence ? `<div class="confidence-bar mt-2"><div class="confidence-fill" style="width: ${data.confidence * 100}%; background: #dc3545;"></div></div>` : ''}
+                                <br>
+                                <button class="btn btn-sm btn-secondary mt-2" onclick="retryFaceAuth()">
+                                    <i class="fas fa-redo"></i> Try Again
+                                </button>
+                                <button class="btn btn-sm btn-primary mt-2" data-bs-dismiss="modal">
+                                    <i class="fas fa-keyboard"></i> Use Password
+                                </button>
+                            </div>
+                        `;
+                        captureBtn.disabled = false;
+                    }
+                } catch (error) {
+                    console.error('Verification error:', error);
+                    loadingOverlay.style.display = 'none';
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Error during verification. Please check your connection and try again.
+                            <br>
+                            <button class="btn btn-sm btn-secondary mt-2" onclick="retryFaceAuth()">
+                                <i class="fas fa-redo"></i> Try Again
+                            </button>
+                        </div>
+                    `;
+                    captureBtn.disabled = false;
+                }
+            }, 'image/jpeg');
+        }
+
+        function retryFaceAuth() {
+            const resultDiv = document.getElementById('faceResult');
+            resultDiv.style.display = 'none';
+            resultDiv.innerHTML = '';
+            const captureBtn = document.getElementById('captureBtn');
+            captureBtn.disabled = false;
+        }
+
+        function stopFaceCamera() {
+            if (faceStream) {
+                faceStream.getTracks().forEach(track => track.stop());
+                faceStream = null;
+            }
+            isFaceDetected = false;
+        }
+
+        // Fingerprint authentication
+        function showFingerprintAuth() {
+            const username = document.getElementById('username').value;
+            if (!username) {
+                alert('Please enter your username first');
+                return;
+            }
+
+            const modal = new bootstrap.Modal(document.getElementById('fingerprintModal'));
+            modal.show();
+
+            const progress = document.getElementById('fingerprintProgress');
+            const resultDiv = document.getElementById('fingerprintResult');
+            progress.style.display = 'block';
+            resultDiv.innerHTML = '';
+
+            // Simulate fingerprint scanning
+            setTimeout(() => {
+                const fingerprintData = 'fp_' + Date.now() + '_' + username;
+
+                fetch('/verify-fingerprint', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ fingerprint_data: fingerprintData, username: username })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    progress.style.display = 'none';
+
+                    if (data.success) {
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i>
+                                <strong>Fingerprint Verified!</strong>
+                                <br>Redirecting to dashboard...
+                            </div>
+                        `;
+                        setTimeout(() => {
+                            window.location.href = '/dashboard';
+                        }, 1500);
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="fas fa-times-circle"></i>
+                                <strong>Fingerprint verification failed</strong><br>
+                                ${data.message || 'Please try again'}
+                                <br>
+                                <button class="btn btn-sm btn-secondary mt-2" onclick="retryFingerprintAuth()">Try Again</button>
+                                <button class="btn btn-sm btn-primary mt-2" data-bs-dismiss="modal">Cancel</button>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Fingerprint error:', error);
+                    progress.style.display = 'none';
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Error during verification. Please try again.
+                            <br>
+                            <button class="btn btn-sm btn-secondary mt-2" onclick="retryFingerprintAuth()">Retry</button>
+                        </div>
+                    `;
+                });
+            }, 2000);
+        }
+
+        function retryFingerprintAuth() {
+            const resultDiv = document.getElementById('fingerprintResult');
+            resultDiv.innerHTML = '';
+            const progress = document.getElementById('fingerprintProgress');
+            progress.style.display = 'block';
+
+            setTimeout(() => {
+                const username = document.getElementById('username').value;
+                const fingerprintData = 'fp_' + Date.now() + '_' + username;
+
+                fetch('/verify-fingerprint', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ fingerprint_data: fingerprintData, username: username })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    progress.style.display = 'none';
+
+                    if (data.success) {
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i>
+                                <strong>Fingerprint Verified!</strong>
+                                <br>Redirecting...
+                            </div>
+                        `;
+                        setTimeout(() => {
+                            window.location.href = '/dashboard';
+                        }, 1500);
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="fas fa-times-circle"></i>
+                                Fingerprint verification failed<br>
+                                <button class="btn btn-sm btn-secondary mt-2" onclick="retryFingerprintAuth()">Try Again</button>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    progress.style.display = 'none';
+                    resultDiv.innerHTML = '<div class="alert alert-danger">Error. Please try again.</div>';
+                });
+            }, 2000);
+        }
+
+        // Clean up on modal close
+        document.getElementById('faceAuthModal').addEventListener('hidden.bs.modal', function() {
+            stopFaceCamera();
+            const resultDiv = document.getElementById('faceResult');
+            resultDiv.style.display = 'none';
+            resultDiv.innerHTML = '';
+            const captureBtn = document.getElementById('captureBtn');
+            captureBtn.disabled = true;
+        });
+
+        document.getElementById('fingerprintModal').addEventListener('hidden.bs.modal', function() {
+            const resultDiv = document.getElementById('fingerprintResult');
+            resultDiv.innerHTML = '';
+            const progress = document.getElementById('fingerprintProgress');
+            progress.style.display = 'none';
+        });
+
+        // Auto-focus username field
+        document.getElementById('username').focus();
+    </script>
+</body>
+</html>
